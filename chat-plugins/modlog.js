@@ -142,19 +142,13 @@ function getMoreButton(room, search, lines, maxLines) {
 		return `<br /><div style="float:right"><button class="button" name="send" value="/modlog ${room}, ${search} ${LINES_SEPARATOR}${newLines}" title="View more results">More results...</button></div>`;
 	}
 }
-function toModlogChar(match) {
-	if (/^\*+$/.test(match)) return '[a-zA-Z0-9]*';
-	return `${match}[^a-zA-Z0-9]*`;
-}
 
 function toModlogId(text) {
 	if (typeof text !== 'string' && typeof text !== 'number') return '';
-	return ('' + text).toLowerCase().replace(/[^a-z0-9*]+/g, '').replace(/(\*+)|./g, toModlogChar);
+	return ('' + text).toLowerCase().replace(/[^a-z0-9*]+/g, '').replace(/\*+/g, '.*');
 }
 
-function escapeRegex(str) {
-	return (str && typeof str === 'string' ? str : '').replace(/[\\.+*?!=()|[\]{}^$#<>]/g, '\\$&');
-}
+const escapeRegex = Chat.escapeRegex; // import function to be used in the side process
 
 function formatSingleSearch(string) {
 	const searchType = string.trim().charAt(0) === '!' ? 'negative' : 'positive';
@@ -394,19 +388,14 @@ function prettifyResults(rawResults, room, searchString, searchType, addModlogLi
 	const modlogid = room + (searchString ? '-' + searchString.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]+/g, '') : '');
 	if (searchString) {
 		const searchStringDescription = (searchType === '2' ? `matching the search query \`${searchString}\`` : searchType === '1' ? `containing the string ${searchString}` : `matching the username "${searchString}"`);
-		preamble = `|popup||wide||html|<p>The last ${lines} logged action${Chat.plural(lines)} ${searchStringDescription} on ${roomName}.` +
+		preamble = `>view-modlog-${modlogid}\n|init|html\n|title|[Modlog]${title}\n|pagehtml|<div class="pad"><p>The last ${lines} logged action${Chat.plural(lines)} ${searchStringDescription} on ${roomName}.` +
 						(searchType === '0' ? "" : " Add quotes to the search parameter to search for a phrase, rather than a user.");
 	} else {
 		preamble = `>view-modlog-${modlogid}\n|init|html\n|title|[Modlog]${title}\n|pagehtml|<div class="pad"><p>The last ${lines} line${Chat.plural(lines)} of the Moderator Log of ${roomName}.`;
 	}
-	
-	// new
-	let moreButton = getMoreButton(room, searchString, exactSearch, lines, maxLines);
-	return `${preamble}${resultString}${moreButton}</div>`;
-	// old mine
-	preamble +=	`</p><p><small>[${Chat.toTimestamp(new Date(), {hour12: true})}] \u2190 current server time</small></p>`;
+
 	let moreButton = getMoreButton(room, searchString, lines, maxLines);
-	return `${preamble}${resultString}${moreButton}`;
+	return `${preamble}${resultString}${moreButton}</div>`;
 }
 
 exports.commands = {

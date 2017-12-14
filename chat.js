@@ -540,10 +540,18 @@ class CommandContext {
 	sendModCommand(data) {
 		this.room.sendModCommand(data);
 	}
-	privateModCommand(data, logOnlyText) {
-		this.room.sendModCommand(data);
-		this.logEntry(data);
-		this.room.modlog(data + (logOnlyText || ""));
+	privateModCommand(message, log) {
+		if (!log) {
+			// only a single message provided - format it with userids by grammatically split-parsing the message
+			const {roomMsg, logMsg} = this.splitModCommand(message);
+			this.room.sendModCommand(roomMsg);
+			this.logEntry(roomMsg);
+			this.room.modlog(logMsg);
+		} else {
+			this.room.sendModCommand(message);
+			this.logEntry(message);
+			this.room.modlog(log);
+		}
 	}
 	globalModlog(action, user, note) {
 		let buf = `(${this.room.id}) ${action}: `;
@@ -562,9 +570,31 @@ class CommandContext {
 		if (this.pmTarget) return;
 		this.room.logEntry(data);
 	}
-	addModCommand(text, logOnlyText) {
-		this.room.addLogMessage(this.user, text);
-		this.room.modlog(text + (logOnlyText || ""));
+	addModCommand(message, log) {
+		if (!log) {
+			// only a single message provided - format it with userids by grammatically split-parsing the message
+			const {roomMsg, logMsg} = this.splitModCommand(message);
+			this.room.addLogMessage(this.user, roomMsg);
+			this.room.modlog(logMsg);
+		} else {
+			this.room.addLogMessage(this.user, message);
+			this.room.modlog(log);
+		}
+	}
+	splitModCommand(roomMsg) {
+		const subjectRegex = new RegExp(`^(\\(?)(${this.targetUsername ? Chat.escapeRegex(this.targetUsername) + '|' : ''}${this.targetUser ? Chat.escapeRegex(this.targetUser.getLastName()) + '|' : ''}${Chat.escapeRegex(this.user.name)})\\b`, 'gi');
+		const objectRegex = new RegExp(`(by|to|for) (${this.targetUsername ? Chat.escapeRegex(this.targetUsername) + '|' : ''}${Chat.escapeRegex(this.user.name)})\\b`, 'gi');
+		const possessiveRegex = new RegExp(`(${this.targetUsername ? Chat.escapeRegex(this.targetUsername) + '|' : ''}${Chat.escapeRegex(this.user.name)})'s`, 'gi');
+
+		let logMsg = roomMsg.replace(subjectRegex, m => {
+			let prefix = m.startsWith('(') ? '(' : '';
+			return prefix + `[${toId(m)}]`;
+		}).replace(objectRegex, m => {
+			const [preposition, ...username] = m.split(' ');
+			return `${preposition} [${toId(username.join(''))}]`;
+		}).replace(possessiveRegex, match => `[${match.slice(0, -2)}]'s`);
+
+		return {roomMsg, logMsg};
 	}
 	logModCommand(text) {
 		this.room.modlog(text);
@@ -1030,6 +1060,16 @@ Chat.loadPlugins = function () {
 		if (plugin.hostfilter) Chat.hostfilters.push(plugin.hostfilter);
 		if (plugin.loginfilter) Chat.loginfilters.push(plugin.loginfilter);
 	}
+};
+
+/**
+ * Escapes Regex in a string.
+ *
+ * @param  {string} str
+ * @return {string}
+ */
+Chat.escapeRegex = function (str) {
+	return (str && typeof str === 'string' ? str : '').replace(/[\\.+*?!=()|[\]{}^$#<>]/g, '\\$&');
 };
 
 /**
