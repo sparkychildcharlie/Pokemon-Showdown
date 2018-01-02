@@ -46,7 +46,7 @@ exports.wsdeflate = null;
 //   of strings. Each string should be either an IP address or a subnet given
 //   in CIDR notation. You should usually leave this as `false` unless you
 //   know what you are doing.
-exports.proxyip = false;
+exports.proxyip = ['10.0.0.0/8'];
 
 // ofe - write heapdumps if sockets.js workers run out of memory.
 //   If you wish to enable this, you will need to install node-oom-heapdump,
