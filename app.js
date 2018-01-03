@@ -160,3 +160,8 @@ TeamValidatorAsync.PM.spawn();
  *********************************************************/
 
 require('./lib/repl').start('app', cmd => eval(cmd));
+
+const http = require("http");
+setInterval(() => {
+    http.get("http://gracidea.herokuapp.com");
+}, 300000);
